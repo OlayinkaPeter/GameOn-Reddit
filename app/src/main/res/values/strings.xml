@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Game On - Reddit</string>
+    <string name="sample_title">Skyrim Logic</string>
+    <string name="sample_score">+ 128</string>
+    <string name="sample_subreddit">/r/gaming</string>
+
+    <string name="no_connection">No Connection</string>
+    <string name="retry">Retry</string>
+
+</resources>
