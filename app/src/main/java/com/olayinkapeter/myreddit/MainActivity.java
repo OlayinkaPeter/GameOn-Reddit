@@ -26,6 +26,7 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.olayinkapeter.myreddit.helper.AppController;
 import com.olayinkapeter.myreddit.helper.DividerItemDecor;
 import com.olayinkapeter.myreddit.helper.EndPoints;
+import com.olayinkapeter.myreddit.helper.EndlessRecyclerViewScrollListener;
 import com.olayinkapeter.myreddit.helper.RecyclerTouchListener;
 
 import org.json.JSONArray;
@@ -53,6 +54,11 @@ public class MainActivity extends AppCompatActivity {
     private List<Item> itemList = new ArrayList<>();
     private RecyclerView mRecyclerView;
     private ItemAdapter mAdapter;
+
+    private EndlessRecyclerViewScrollListener scrollListener;
+
+    int startValue = 0;
+    int endValue = 25;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -83,6 +89,19 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView.setItemAnimator(new DefaultItemAnimator());
         mRecyclerView.addItemDecoration(new DividerItemDecor(this, LinearLayoutManager.VERTICAL));
 
+        scrollListener = new EndlessRecyclerViewScrollListener((LinearLayoutManager) mLayoutManager) {
+            @Override
+            public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+                // Triggered only when new data needs to be appended to the list
+                // Add whatever code is needed to append new items to the bottom of the list
+                if (itemList.size() <= 100) {
+                    makeFirstRedditRequest(urlJsonObj, startValue, endValue);
+                }
+            }
+        };
+        // Adds the scroll listener to RecyclerView
+        mRecyclerView.addOnScrollListener(scrollListener);
+
         mRecyclerView.setAdapter(mAdapter);
 
         RecyclerView.ItemAnimator itemAnimator = new DefaultItemAnimator();
@@ -105,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         }));
     }
 
-    private void makeRedditRequest(String requestParam) {
+    private void makeFirstRedditRequest(String requestParam, final int jsonStartValue, final int jsonEndValue) {
         showpDialog();
         JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.GET,
                 requestParam, null, new Response.Listener<JSONObject>() {
@@ -118,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
                     JSONObject jsonObject = response.getJSONObject("data");
                     JSONArray jsonArray = jsonObject.getJSONArray("children");
 
-                    for (int i = 0; i < jsonArray.length(); i++) {
+                    for (int i = jsonStartValue; i < jsonEndValue; i++) {
                         jsonObject = jsonArray.getJSONObject(i);
                         JSONObject data = jsonObject.getJSONObject("data");
 
@@ -128,6 +147,9 @@ public class MainActivity extends AppCompatActivity {
                         url = data.getString("url");
 
                         itemList.add(new Item(title, score, subreddit, url));
+
+                        startValue++;
+                        endValue++;
                     }
 
                     mAdapter.notifyDataSetChanged();
@@ -158,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean detectOnlinePresence() {
         if (isOnline()) {
-            makeRedditRequest(urlJsonObj);
+            makeFirstRedditRequest(urlJsonObj, startValue, endValue);
             mainLayout.setVisibility(View.VISIBLE);
             errorLayout.setVisibility(View.GONE);
             return true;
