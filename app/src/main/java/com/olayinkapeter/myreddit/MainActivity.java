@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DefaultItemAnimator;
@@ -33,6 +34,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout mainLayout, errorLayout;
     private Button retry;
 
+    private RecyclerView.LayoutManager mLayoutManager;
     private Item item;
     private List<Item> itemList = new ArrayList<>();
     private RecyclerView mRecyclerView;
@@ -59,6 +62,11 @@ public class MainActivity extends AppCompatActivity {
 
     int startValue = 0;
     int endValue = 25;
+
+    private int mCounter;
+
+    private static final String STATE_COUNTER = "counter";
+    private static final String STATE_ITEMS = "items";
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -73,18 +81,30 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        pDialog = new ProgressDialog(this);
-        pDialog.setMessage("Please wait...");
-        pDialog.setCancelable(false);
-
         mainLayout = (LinearLayout) findViewById(R.id.main_layout);
         errorLayout = (LinearLayout) findViewById(R.id.error_layout);
         retry = (Button) findViewById(R.id.btnRetry);
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
 
+        pDialog = new ProgressDialog(this);
+        pDialog.setMessage("Please wait...");
+        pDialog.setCancelable(false);
+
+        if (savedInstanceState != null) {
+            mCounter = savedInstanceState.getInt(STATE_COUNTER, 0);
+            itemList = (List<Item>) savedInstanceState.getSerializable(STATE_ITEMS);
+
+            mAdapter = new ItemAdapter(itemList, this);
+        }
+
+        else {
+            mAdapter = new ItemAdapter(itemList, this);
+            detectOnlinePresence();
+        }
+
         mAdapter = new ItemAdapter(itemList, this);
-        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
+        mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setItemAnimator(new DefaultItemAnimator());
         mRecyclerView.addItemDecoration(new DividerItemDecor(this, LinearLayoutManager.VERTICAL));
@@ -95,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
                 // Triggered only when new data needs to be appended to the list
                 // Add whatever code is needed to append new items to the bottom of the list
                 if (itemList.size() <= 100) {
-                    makeFirstRedditRequest(urlJsonObj, startValue, endValue);
+                    makeRedditRequest(urlJsonObj, startValue, endValue);
                 }
             }
         };
@@ -108,8 +128,6 @@ public class MainActivity extends AppCompatActivity {
         itemAnimator.setAddDuration(1000);
         itemAnimator.setRemoveDuration(1000);
         mRecyclerView.setItemAnimator(itemAnimator);
-
-        detectOnlinePresence();
 
         mRecyclerView.addOnItemTouchListener(new RecyclerTouchListener(this, mRecyclerView, new RecyclerTouchListener.ClickListener() {
             @Override
@@ -124,7 +142,15 @@ public class MainActivity extends AppCompatActivity {
         }));
     }
 
-    private void makeFirstRedditRequest(String requestParam, final int jsonStartValue, final int jsonEndValue) {
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+
+        state.putInt(STATE_COUNTER, mCounter);
+        state.putSerializable(STATE_ITEMS, (Serializable) itemList);
+    }
+
+    private void makeRedditRequest(String requestParam, final int jsonStartValue, final int jsonEndValue) {
         showpDialog();
         JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.GET,
                 requestParam, null, new Response.Listener<JSONObject>() {
@@ -180,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean detectOnlinePresence() {
         if (isOnline()) {
-            makeFirstRedditRequest(urlJsonObj, startValue, endValue);
+            makeRedditRequest(urlJsonObj, startValue, endValue);
             mainLayout.setVisibility(View.VISIBLE);
             errorLayout.setVisibility(View.GONE);
             return true;
